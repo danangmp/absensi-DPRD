@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Admin Presensi — DPRD Surakarta</title>
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <h1>DASHBOARD ADMIN PRESENSI</h1>
+      <p>Sekretariat DPRD Kota Surakarta • Manajemen Data Biometrik & Rekap Kehadiran</p>
+    </div>
+
+    <div class="header-actions">
+      <a href="/kiosk/index.html" class="btn btn-secondary" target="_blank">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+          <line x1="8" y1="21" x2="16" y2="21"/>
+          <line x1="12" y1="17" x2="12" y2="21"/>
+        </svg>
+        Buka Layar Kiosk Tablet
+      </a>
+
+      <button class="btn btn-primary" onclick="loadStats(); loadAttendanceLogs();">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+        </svg>
+        Segarkan Data
+      </button>
+    </div>
+  </header>
+
+  <!-- Stat Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="label">Peserta Magang Aktif</div>
+      <div class="value" id="statActiveParticipants">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Presensi Masuk Hari Ini</div>
+      <div class="value" id="statCheckIns" style="color: #10b981;">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Presensi Pulang Hari Ini</div>
+      <div class="value" id="statCheckOuts" style="color: #38bdf8;">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Perlu Ditinjau (Flagged)</div>
+      <div class="value" id="statFlagged" style="color: #ef4444;">0</div>
+    </div>
+  </div>
+
+  <!-- Tabs Nav -->
+  <div class="tabs">
+    <button class="tab-btn active" id="btn-tab-logs" onclick="showTab('logs')">Rekap Presensi Harian</button>
+    <button class="tab-btn" id="btn-tab-participants" onclick="showTab('participants')">Daftar Peserta & Biometrik (UU PDP)</button>
+    <button class="tab-btn" id="btn-tab-manual" onclick="showTab('manual')">Input Presensi Manual</button>
+  </div>
+
+  <!-- TAB 1: REKAP PRESENSI -->
+  <div class="tab-pane active" id="tab-logs">
+    <div class="table-container">
+      <div class="filter-bar">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <label style="font-size: 0.85rem; color: #94a3b8; font-weight: 600;">Tanggal:</label>
+          <input type="date" id="filterDate" onchange="loadAttendanceLogs()" style="background:#0f172a; border:1px solid #334155; color:white; padding:6px 12px; border-radius:6px;">
+
+          <label style="font-size: 0.85rem; color: #94a3b8; margin-left: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <input type="checkbox" id="filterFlagged" onchange="loadAttendanceLogs()">
+            Tampilkan Hanya yang Mencurigakan (Flagged)
+          </label>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-danger" style="background:#dc2626;" onclick="cleanDuplicatesToday()" title="Hapus rekaman berulang hari ini agar data valid">
+            Bersihkan Dobel Hari Ini
+          </button>
+          <button class="btn btn-secondary" onclick="exportReport('csv')">Ekspor CSV</button>
+          <button class="btn btn-success" onclick="exportReport('excel')">Ekspor Excel (.xlsx)</button>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Bukti Foto</th>
+            <th>Waktu Presensi</th>
+            <th>ID Magang</th>
+            <th>Nama Lengkap</th>
+            <th>Divisi</th>
+            <th>Jenis</th>
+            <th>Metode & Status</th>
+            <th>Skor Wajah</th>
+            <th>Aksi Admin</th>
+          </tr>
+        </thead>
+        <tbody id="logsTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB 2: DAFTAR PESERTA & BIOMETRIK -->
+  <div class="tab-pane" id="tab-participants">
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>ID Magang</th>
+            <th>Nama Lengkap</th>
+            <th>Kampus/Sekolah</th>
+            <th>Periode Magang</th>
+            <th>Biometrik Wajah</th>
+            <th>Status</th>
+            <th>Aksi Keamanan</th>
+          </tr>
+        </thead>
+        <tbody id="participantsTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB 3: INPUT PRESENSI MANUAL -->
+  <div class="tab-pane" id="tab-manual">
+    <div class="table-container" style="max-width: 600px; padding: 28px;">
+      <h3 style="margin-bottom: 6px;">Form Presensi Manual Admin</h3>
+      <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 20px;">
+        Gunakan form ini jika kamera tablet mengalami kendala teknis atau peserta berhalangan presensi di kiosk.
+      </p>
+
+      <form id="manualForm" onsubmit="submitManualAttendanceForm(event)">
+        <div style="margin-bottom: 16px;">
+          <label style="display:block; font-size:0.85rem; margin-bottom:6px; font-weight:600;">Peserta Magang:</label>
+          <select id="manualParticipantSelect" required style="width:100%; padding:10px; background:#0f172a; border:1px solid #334155; color:white; border-radius:8px;"></select>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <label style="display:block; font-size:0.85rem; margin-bottom:6px; font-weight:600;">Jenis Presensi:</label>
+          <select id="manualType" style="width:100%; padding:10px; background:#0f172a; border:1px solid #334155; color:white; border-radius:8px;">
+            <option value="check_in">Presensi Masuk</option>
+            <option value="check_out">Presensi Pulang</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <label style="display:block; font-size:0.85rem; margin-bottom:6px; font-weight:600;">Nama Admin yang Menyetujui:</label>
+          <input type="text" id="manualAdminName" required placeholder="Contoh: Bpk. Joko (Admin Resepsionis)" style="width:100%; padding:10px; background:#0f172a; border:1px solid #334155; color:white; border-radius:8px;">
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <label style="display:block; font-size:0.85rem; margin-bottom:6px; font-weight:600;">Alasan Presensi Manual (Wajib Diisi):</label>
+          <textarea id="manualReason" required rows="3" placeholder="Contoh: Wajah tidak terdeteksi karena baru operasi mata / kamera tablet sedang maintenance" style="width:100%; padding:10px; background:#0f172a; border:1px solid #334155; color:white; border-radius:8px;"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width:100%; padding:12px; font-size:0.95rem; justify-content:center;">Simpan Presensi Manual</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Zoom Foto Bukti -->
+  <div id="photoModal" onclick="closePhotoModal()">
+    <img id="zoomedImg" src="" alt="Foto Bukti Presensi">
+  </div>
+
+  <script src="js/admin.js"></script>
+</body>
+</html>
